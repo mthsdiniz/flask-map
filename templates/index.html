@@ -1,0 +1,53 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>GeoJSON and Raster Web App</title>
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.7.1/dist/leaflet.css" />
+    <script src="https://unpkg.com/leaflet@1.7.1/dist/leaflet.js"></script>
+    <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
+</head>
+<body>
+    <select id="geojson-select">
+        <option value="">Select a GeoJSON file</option>
+    </select>
+    <div id="map" style="width: 100%; height: 100vh;"></div>
+
+    <script>
+        const map = L.map('map').setView([38.9072, -77.0369], 10); // Set your desired initial location and zoom level
+        L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png').addTo(map);
+
+        function fetchGeoJSONFiles() {
+            $.getJSON('/geojson-files', function(geojsonFiles) {
+                for (const file of geojsonFiles) {
+                    $('#geojson-select').append($('<option>', {
+                        value: file.url,
+                        text: file.name
+                    }));
+                }
+            });
+        }
+
+        // Call the fetchGeoJSONFiles function when the page loads
+        fetchGeoJSONFiles();
+        let geojsonLayer;
+
+        $("#geojson-select").change(function() {
+            const selectedGeojson = $(this).val();
+
+            // Fetch the GeoJSON file and add it to the map
+            fetch(selectedGeojson)
+                .then(response => response.json())
+                .then(data => {
+                    if (geojsonLayer) {
+                        map.removeLayer(geojsonLayer);
+                    }
+
+                    geojsonLayer = L.geoJSON(data).addTo(map);
+                });
+        });
+
+    </script>
+</body>
+</html>
