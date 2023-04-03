@@ -3,51 +3,77 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>GeoJSON and Raster Web App</title>
+    <title>GitHub GeoJSON and KML Viewer</title>
     <link rel="stylesheet" href="https://unpkg.com/leaflet@1.7.1/dist/leaflet.css" />
     <script src="https://unpkg.com/leaflet@1.7.1/dist/leaflet.js"></script>
     <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
+    <style>
+        #map {
+            height: 500px;
+            margin-bottom: 20px;
+        }
+    </style>
 </head>
 <body>
-    <select id="geojson-select">
-        <option value="">Select a GeoJSON file</option>
-    </select>
-    <div id="map" style="width: 100%; height: 100vh;"></div>
+    <div id="map"></div>
+    <div id="sidebar">
+        <h1>GitHub GeoJSON and KML Viewer</h1>
+        <p>Select a GeoJSON or KML file:</p>
+        <input type="text" id="search" placeholder="Search for files">
+        <select id="file-select">
+            <option value="">Select a file</option>
+        </select>
+    </div>
 
     <script>
-        const map = L.map('map').setView([38.9072, -77.0369], 10); // Set your desired initial location and zoom level
+        const map = L.map('map').setView([0, 0], 2); // Set your desired initial location and zoom level
         L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png').addTo(map);
 
-        function fetchGeoJSONFiles() {
-            $.getJSON('/geojson-files', function(geojsonFiles) {
-                for (const file of geojsonFiles) {
-                    $('#geojson-select').append($('<option>', {
-                        value: file.url,
-                        text: file.name
-                    }));
+        function fetchFiles() {
+            $.getJSON('/get-files', function(files) {
+                const select = $('#file-select');
+
+                for (const file of files) {
+                    if (file.type === 'file' && (file.path.endsWith('.geojson') || file.path.endsWith('.kml'))) {
+                        select.append($('<option>', {
+                            value: file.download_url,
+                            text: file.path
+                        }));
+                    }
                 }
             });
         }
 
-        // Call the fetchGeoJSONFiles function when the page loads
-        fetchGeoJSONFiles();
-        let geojsonLayer;
+        // Call the fetchFiles function when the page loads
+        fetchFiles();
 
-        $("#geojson-select").change(function() {
-            const selectedGeojson = $(this).val();
+        let layer;
 
-            // Fetch the GeoJSON file and add it to the map
-            fetch(selectedGeojson)
-                .then(response => response.json())
+        $("#file-select").change(function() {
+            const selectedFile = $(this).val();
+
+            // Fetch the GeoJSON or KML file and add it to the map
+            fetch(`/fetch-file?url=${selectedFile}`)
+                .then(response => response.text())
                 .then(data => {
-                    if (geojsonLayer) {
-                        map.removeLayer(geojsonLayer);
+                    if (layer) {
+                        map.removeLayer(layer);
                     }
 
-                    geojsonLayer = L.geoJSON(data).addTo(map);
+                    const format = (selectedFile.endsWith('.geojson') ? 'geojson' : 'kml');
+                    layer = omnivore[format].parse(data).addTo(map);
+                    map.fitBounds(layer.getBounds());
                 });
         });
 
+        // Enable search functionality
+        $('#search').on('keyup', function() {
+            const value = $(this).val().toLowerCase();
+
+            $('#file-select option').filter(function() {
+                $(this).toggle($(this).text().toLowerCase().indexOf(value) > -1);
+            });
+        });
     </script>
 </body>
 </html>
