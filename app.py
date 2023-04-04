@@ -78,7 +78,6 @@ def get_files():
             return []
 
     files = get_files_recursive('')
-
     return jsonify(files)
 
 if __name__ == '__main__':
