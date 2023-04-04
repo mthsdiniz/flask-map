@@ -33,6 +33,33 @@ $('#load-btn').on('click',function(){
 
 let layer;
 
+function fetchImageries(geoJSON) {
+    // Replace the URL below with the appropriate STAC API endpoint
+    const stacApiUrl = 'https://example-stac-api.com/search';
+
+    // Set up the query parameters for the STAC API request
+    const params = {
+        collections: ['sentinel-s2-l2a'], // Replace with the desired collections
+        intersects: JSON.stringify(geoJSON.geometry)
+    };
+
+    // Perform the STAC API request and populate the imagery-select dropdown
+    $.getJSON(stacApiUrl, params, function (data) {
+        const select = $('#imagery-select');
+        select.empty();
+
+        for (const item of data.features) {
+            const datetime = item.properties.datetime;
+            const id = item.id;
+
+            select.append($('<option>', {
+                value: id,
+                text: `${id} (${datetime})`
+            }));
+        }
+    });
+}
+
 $("#file-select").change(function () {
     const selectedFile = $(this).val();
     const file_type = selectedFile.split('.').pop().split('?').shift();
@@ -50,6 +77,9 @@ $("#file-select").change(function () {
                 layer = L.geoJSON(data).addTo(map);
                 map.fitBounds(layer.getBounds());
 
+                // Fetch available imageries using the STAC API
+                fetchImageries(data);
+
             });
     } else if (file_type === "kml") {
         fetch(`/fetch-file?url=${selectedFile}&ghtoken=${gh_token}`)
@@ -62,6 +92,10 @@ $("#file-select").change(function () {
                 const format = (selectedFile.endsWith('.geojson') ? 'geojson' : 'kml');
                 layer = omnivore[format].parse(data).addTo(map);
                 map.fitBounds(layer.getBounds());
+
+                // Convert KML to GeoJSON for the fetchImageries function
+                const kmlToGeoJSON = tj.kml(new DOMParser().parseFromString(data, 'text/xml'));
+                fetchImageries(kmlToGeoJSON);
             });
     }
 });
